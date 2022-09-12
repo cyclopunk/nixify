@@ -1,5 +1,10 @@
 package io.nixify.api.model
 
+/**
+ * Class to run Nix commands locally
+ *
+ * TODO Have the individual commands return entities (e.g. DerivationFile)
+ */
 object NixRunner {
     fun showDerivation(path: String) : String {
        return runCommand("show-derivation", path)

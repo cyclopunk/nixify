@@ -18,8 +18,10 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.data.neo4j.core.transaction.Neo4jTransactionManager
 import org.springframework.data.neo4j.repository.config.EnableNeo4jRepositories
 import org.springframework.data.repository.findByIdOrNull
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.transaction.annotation.EnableTransactionManagement
 import org.springframework.transaction.event.TransactionalEventListener
+import org.springframework.web.servlet.config.annotation.EnableWebMvc
 
 @SpringBootApplication
 @EnableNeo4jRepositories
@@ -34,90 +36,33 @@ class AletheaApiApplication {
     @Autowired
     lateinit var pkgNodes : PackageRepository
     
+    @Autowired
     lateinit var store : NixStore
     
-    var nodeCache : MutableMap<String, DerivationNode> = mutableMapOf()
     
-    fun makeDerivationNode(hash: String, file: DerivationFile) : DerivationNode? {
-        //println("Making node $hash - ${file.name}")
-        
-        val children = mutableListOf<DerivationNode>()
-        
-        val packageId = NixPathTools.splitPath(file.outputs.values.first().path ?: "").hash
-        
-        val pkg = store.findPackage(packageId)
-        
-        if (pkg != null){
-            println("Found output package $pkg")
-        }
-        
-        val node = DerivationNode(file.name ?: "",hash, children, file.system,
-            file.builder,
-            file.arguments.joinToString(" "),
-            pkg?.let {  listOf(pkg) } ?: listOf(),
-            file.environment
-            )
-        
-        //log.i("Adding children to ${node.name}")
-        
-        children.addAll(file.inputDerivations.mapNotNull {(k,v) ->
-            val nh = NixPathTools.splitPath(k)
-            //println("Adding child $k")
-            var childNode = nodeCache[nh.hash]
-            
-            if (childNode == null) {
-                childNode = makeDerivationNode(nh.hash,store.findDerivation(nh.hash)!!)?.let {
-                    //log.i("Saving derivation in cache ${it.name} hash: ${it.hash}")
-                    
-                    nodeCache[it.hash] = it
-                    
-                    if (nodeCache.size % 10 == 0)
-                        log.i("Current nodeCache size: ${nodeCache.size}")
-                    
-                    it
-                }
-            }
-    
-            childNode
-        }.toList())
-        
-        /*try {
-            children.forEach {
-                dnodes.save(it)
-            }
-    
-            dnodes.save(node)
-        } catch (e: Exception) {
-            println("Can't save node ${node} - $e")
-        }*/
-        return node
-    }
     
     @TransactionalEventListener(ApplicationStartedEvent::class, fallbackExecution = true)
     fun appStartup() {
         dnodes.deleteAll()
         pkgNodes.deleteAll()
-        
+    
         log.i("Loading nix store")
-        store = NixStore.load()
+        store.load()
         log.i("Done loading nix store")
-        
+    
         // build the graph
         log.i("Building graph there are ${store.children} total edges and ${store.derivations.size} nodes")
-        
+    
         //store.packages.forEach { (k,v) -> pkgNodes.save(v) }
         store.derivations.forEach { (k,v) ->
-            if (nodeCache[k] == null)
-                makeDerivationNode(k, v)
+            if (store.nodeCache[k] == null)
+                store.makeDerivationNode(k, v)
         }
-        
-        
+    
+    
         log.i("Done building graph - saving to neo4j")
-        
-        dnodes.saveAll(nodeCache.values)
-        
-        
-        
+    
+        dnodes.saveAll(store.nodeCache.values)
     }
 }
 

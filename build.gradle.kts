@@ -22,11 +22,11 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-data-neo4j")
+    implementation("com.okta.spring:okta-spring-boot-starter:2.1.6")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
     runtimeOnly("com.h2database:h2:2.1.214")
 
     implementation("me.paulschwarz:spring-dotenv:2.5.4")
-    implementation("com.okta.spring:okta-spring-boot-starter:2.1.6")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
     runtimeOnly("org.postgresql:postgresql")
